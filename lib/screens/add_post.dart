@@ -8,6 +8,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:http/http.dart' as http;
 
 class AddPostScreen extends StatefulWidget {
   const AddPostScreen({super.key});
@@ -57,19 +58,18 @@ class _AddPostScreenState extends State<AddPostScreen> {
       builder: (BuildContext context) {
         return ListView(
           shrinkWrap: true,
-          children:
-              categories.map((category) {
-                return ListTile(
-                  title: Text(category),
-                  onTap: () {
-                    setState(() {
-                      _aiCategory =
-                          category; // Ganti AI category dengan pilihan user
-                    });
-                    Navigator.pop(context);
-                  },
-                );
-              }).toList(),
+          children: categories.map((category) {
+            return ListTile(
+              title: Text(category),
+              onTap: () {
+                setState(() {
+                  _aiCategory =
+                      category; // Ganti AI category dengan pilihan user
+                });
+                Navigator.pop(context);
+              },
+            );
+          }).toList(),
         );
       },
     );
@@ -124,7 +124,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
     setState(() => _isGenerating = true);
     try {
       final model = GenerativeModel(
-        model: 'gemini-1.5-pro',
+        model: 'gemini-1.5-flash',
         apiKey: 'AIzaSyDfUesm_UGX9gsFfaIRVMiD4EPbKDYTPwg',
       );
 
@@ -260,7 +260,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
       });
 
       if (!mounted) return;
-
+      sendNotificationToTopic(_descriptionController.text, fullName);
       Navigator.pop(context);
       ScaffoldMessenger.of(
         context,
@@ -314,6 +314,38 @@ class _AddPostScreenState extends State<AddPostScreen> {
     );
   }
 
+  Future<void> sendNotificationToTopic(String body, String senderName) async {
+    final url = Uri.parse('https://fasum-cloud-nine.vercel.app/send-to-topic');
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        "topic": "berita-fasum",
+        "title": "🔔 Laporan Baru",
+        "body": body,
+        "senderName": senderName,
+        "senderPhotoUrl":
+            "https://static.vecteezy.com/system/resources/thumbnails/041/642/167/small_2x/ai-generated-portrait-of-handsome-smiling-young-man-with-folded-arms-isolated-free-png.png",
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('✅ Notifikasi berhasil dikirim')),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Gagal kirim notifikasi: ${response.body}')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -331,24 +363,23 @@ class _AddPostScreenState extends State<AddPostScreen> {
                   color: Colors.grey[300],
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child:
-                    _image != null
-                        ? ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.file(
-                            _image!,
-                            height: 250,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                          ),
-                        )
-                        : Center(
-                          child: Icon(
-                            Icons.add_a_photo,
-                            size: 50,
-                            color: Colors.grey,
-                          ),
+                child: _image != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(
+                          _image!,
+                          height: 250,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
                         ),
+                      )
+                    : Center(
+                        child: Icon(
+                          Icons.add_a_photo,
+                          size: 50,
+                          color: Colors.grey,
+                        ),
+                      ),
               ),
             ),
 
@@ -445,18 +476,18 @@ class _AddPostScreenState extends State<AddPostScreen> {
               ),
               child: _isUploading
                   ? SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: CircularProgressIndicator(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(
                         valueColor: AlwaysStoppedAnimation<Color>(
                           Colors.white,
                         ),
                       ),
-                  )
+                    )
                   : const Text(
-                    'Post',
-                    style: TextStyle(color: Colors.white),
-                  ),
+                      'Post',
+                      style: TextStyle(color: Colors.white),
+                    ),
             ),
           ],
         ),
